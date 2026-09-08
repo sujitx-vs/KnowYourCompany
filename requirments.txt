@@ -1,0 +1,6 @@
+langgraph
+langchain-google-genai
+python-dotenv
+tavily-python
+exa-py
+reportlab
