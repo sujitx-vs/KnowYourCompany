@@ -23,6 +23,10 @@ def verify_company(
     state: ResearchState
 ):
 
+    if state.get("company_identity"):
+        print("\nUsing cached company identity.")
+        return {}
+
     company = state[
         "company_name"
     ]
@@ -126,6 +130,10 @@ or general company research.
 def research_company(
     state: ResearchState
 ):
+
+    if state.get("search_results"):
+        print("\nUsing cached company research results.")
+        return {}
 
     print(
         f"\nResearching "
@@ -652,6 +660,10 @@ Rules:
 def generate_domains(
     state: ResearchState
 ):
+
+    if state.get("available_domains"):
+        print("\nUsing cached domain list.")
+        return {}
 
     print(
         "\nIdentifying relevant job domains..."
