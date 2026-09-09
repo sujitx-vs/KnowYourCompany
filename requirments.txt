@@ -4,3 +4,5 @@ python-dotenv
 tavily-python
 exa-py
 reportlab
+fastapi
+uvicorn
