@@ -1187,38 +1187,21 @@ questions.
 # GENERATE PDF
 # ============================================================
 
-def generate_pdf(
-    state: ResearchState
-):
-
-    print(
-        "\nGenerating PDF report..."
-    )
-
+def generate_pdf(state: ResearchState):
+    print("\nGenerating PDF report...")
 
     pdf_path = create_placement_pdf(
-
-        company_name=
-            state["company_name"],
-
-        report=
-            state["report"],
-
-        selected_domain=
-            state["selected_domain"],
-
-        domain_analysis=
-            state["domain_analysis"]
+        company_name=state["company_name"],
+        report=state["report"],
+        selected_domain=state["selected_domain"],
+        domain_analysis=state["domain_analysis"]
     )
 
+    print(f"\nPDF created: {pdf_path}")
 
-    print(
-        f"\nPDF created: "
-        f"{pdf_path}"
-    )
-
-
-    return {}
+    return {
+        "pdf_path": pdf_path
+    }
 def route_after_company_analysis(
     state: ResearchState
 ):
