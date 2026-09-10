@@ -191,7 +191,10 @@ def get_checkpointer():
             pool = ConnectionPool(
                 conninfo=db_url,
                 max_size=10,
-                kwargs={"autocommit": True}
+                kwargs={
+                    "autocommit": True,
+                    "prepare_threshold": None
+                }
             )
             checkpointer = PostgresSaver(pool)
             checkpointer.setup()
