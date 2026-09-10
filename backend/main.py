@@ -64,13 +64,33 @@ def health_check():
         "message": "KnowYourCompany API is running."
     }
 
+
+# ============================================================
+# VIEW PDF IN BROWSER
+# ============================================================
+
+@app.get("/view-pdf")
+def view_pdf(path: str):
+
+    return FileResponse(
+        path=path,
+        media_type="application/pdf"
+    )
+
+
+# ============================================================
+# DOWNLOAD PDF
+# ============================================================
+
 @app.get("/download-pdf")
 def download_pdf(path: str):
+
     return FileResponse(
         path=path,
         media_type="application/pdf",
         filename="placement_report.pdf"
     )
+
 
 # ============================================================
 # START COMPANY RESEARCH
@@ -96,25 +116,25 @@ def start_research(
     # --------------------------------------------------------
 
     initial_state = {
-    "company_name": company_name,
-    "company_identity": "",
+        "company_name": company_name,
+        "company_identity": "",
 
-    "search_results": [],
-    "company_evidence_confidence": "",
+        "search_results": [],
+        "company_evidence_confidence": "",
 
-    "analysis": "",
-    "report": "",
+        "analysis": "",
+        "report": "",
 
-    "available_domains": [],
-    "selected_domain": "",
+        "available_domains": [],
+        "selected_domain": "",
 
-    "domain_search_results": [],
-    "domain_evidence_confidence": "",
+        "domain_search_results": [],
+        "domain_evidence_confidence": "",
 
-    "domain_analysis": "",
+        "domain_analysis": "",
 
-    "pdf_path": ""
-}
+        "pdf_path": ""
+    }
 
 
     # --------------------------------------------------------
@@ -223,7 +243,11 @@ def select_domain(
     )
 
 
-    pdf_path = result.get("pdf_path", "")
+    pdf_path = result.get(
+        "pdf_path",
+        ""
+    )
+
 
     return {
         "status": "completed",
