@@ -1,5 +1,7 @@
 # Environment variables
 .env
+.env.local
+.env*.local
 
 # Virtual environment
 venv/
@@ -23,3 +25,8 @@ Thumbs.db
 
 #locally run project
 run_project.bat/
+
+# Frontend
+node_modules/
+.next/
+out/

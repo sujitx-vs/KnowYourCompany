@@ -1,8 +1,8 @@
 # KnowYourCompany
 
-KnowYourCompany is an AI-powered company research and campus-placement preparation agent built with **LangGraph, Gemini, Tavily, Exa, FastAPI, Next.js, and ReportLab**.
+KnowYourCompany is an AI-powered company research and campus-placement preparation agent built with **LangGraph, Gemini, Tavily, Exa, FastAPI, Next.js, Supabase, and ReportLab**.
 
-It researches a company from multiple web sources, verifies company identity, filters unrelated evidence, analyzes evidence quality, generates a placement-focused company report, pauses for **Human-in-the-Loop (HITL)** domain selection, performs domain-specific research, and produces a downloadable PDF report through a web interface.
+It researches a company from multiple web sources, verifies company identity, filters unrelated evidence, analyzes evidence quality, generates a placement-focused company report, pauses for **Human-in-the-Loop (HITL)** domain selection, performs domain-specific research, and produces a private downloadable PDF report through a modern web interface.
 
 ## Key Features
 
@@ -18,9 +18,11 @@ It researches a company from multiple web sources, verifies company identity, fi
 - Human-in-the-Loop domain selection
 - Domain-specific follow-up research
 - Gemini model fallback
-- LangGraph checkpointing with `MemorySaver`
-- FastAPI backend
-- Next.js + React + Tailwind frontend
+- **Persistent LangGraph Checkpointing**: Powered by Supabase Postgres (`PostgresSaver`) to survive backend restarts, with graceful local `MemorySaver` fallback
+- **Cloud PDF Storage**: Uploads reports to private Supabase Storage (`placement-reports`) with time-limited signed URLs
+- **Unique Session & Report IDs**: Collision-free threads and PDF filenames
+- **Environment-based Configuration**: Production CORS and dynamic `NEXT_PUBLIC_API_URL`
+- FastAPI backend + Next.js (React 19 + Tailwind CSS) frontend
 - PDF generation with ReportLab
 - PDF preview, open-in-new-tab, and download support
 - Lightweight in-run caching for stable state
@@ -28,15 +30,25 @@ It researches a company from multiple web sources, verifies company identity, fi
 ## Architecture
 
 ```text
-Next.js + React + Tailwind
-          ↓
-        FastAPI
-          ↓
-       LangGraph
-          ↓
-   Tavily + Exa + Gemini
-          ↓
-      ReportLab PDF
+       ┌──────────────────────────────────────────────┐
+       │             Frontend: Vercel                 │
+       │    (Next.js 16 + React 19 + Tailwind CSS)     │
+       └──────────────────────┬───────────────────────┘
+                              │
+                              │ NEXT_PUBLIC_API_URL
+                              ▼
+       ┌──────────────────────────────────────────────┐
+       │      Backend: Render / Railway Web Service   │
+       │            (FastAPI + Uvicorn)               │
+       └──────┬───────────────┬────────────────┬──────┘
+              │               │                │
+              ▼               ▼                ▼
+   ┌────────────────────┐  ┌─────────────┐  ┌─────────────────────────┐
+   │ LangGraph Workflow │  │ Search APIs │  │    Supabase Cloud       │
+   │  - Research nodes  │  │ - Tavily    │  │ - Storage (PDF bucket)  │
+   │  - HITL interrupt  │  │ - Exa       │  │ - Postgres Checkpointer │
+   │  - Gemini LLM      │  └─────────────┘  │   (Session persistence) │
+   └────────────────────┘                   └─────────────────────────┘
 ```
 
 ## LangGraph Workflow
@@ -68,7 +80,7 @@ Check Company Evidence Confidence
               ↓
        analyze_domain
               ↓
-        generate_pdf
+        generate_pdf (Supabase upload & signed URL)
               ↓
              END
 ```
@@ -96,29 +108,19 @@ Evidence is classified as:
 
 If company-level evidence is `INSUFFICIENT`, the graph stops early.
 
-## Performance Optimizations
-
-- Search results from multiple queries are collected before relevance filtering.
-- URLs are deduplicated before being sent to Gemini.
-- Company relevance filtering uses one batched Gemini call instead of one call per query.
-- Domain relevance filtering uses the same batched approach.
-- Evidence confidence and analysis are combined into one Gemini call where appropriate.
-- Deterministic tasks such as evidence formatting, confidence parsing, numbered-list parsing, empty-result checks, and cache checks are handled in Python.
-- Stable state such as `company_identity`, `search_results`, and `available_domains` can be reused during the same LangGraph thread.
-
 ## Project Structure
 
 ```text
 KnowYourCompany/
 │
 ├── agent/
-│   ├── graph.py
-│   ├── state.py
+│   ├── graph.py                 # Graph definition with Postgres checkpointer & fallback
+│   ├── state.py                 # TypedDict ResearchState (pdf_path, pdf_url)
 │   ├── nodes/
 │   │   ├── __init__.py
-│   │   ├── company.py
-│   │   ├── domain.py
-│   │   └── report.py
+│   │   ├── company.py           # Verification, research, analysis, report, domains
+│   │   ├── domain.py            # HITL interrupt, domain research, analysis
+│   │   └── report.py            # Temporary PDF creation & Supabase upload
 │   ├── edges/
 │   │   ├── __init__.py
 │   │   └── routing.py
@@ -130,25 +132,23 @@ KnowYourCompany/
 │       └── parsing.py
 │
 ├── app/
-│   └── main.py
+│   └── main.py                  # CLI runner
 ├── backend/
 │   ├── __init__.py
-│   └── main.py
+│   ├── main.py                  # FastAPI server with dynamic CORS & routes
+│   └── supabase_client.py       # Backend-only Supabase storage & signed URL service
 ├── frontend/
-│   ├── app/
-│   ├── public/
-│   ├── package.json
-│   ├── package-lock.json
-│   └── ...
+│   ├── app/                     # Next.js 16 App Router UI
+│   ├── .env.example             # Frontend environment template
+│   ├── .env.local               # Local frontend configuration
+│   └── package.json
 ├── tools/
-│   ├── web_search.py
-│   ├── exa_search.py
-│   └── pdf_generator.py
+│   ├── web_search.py            # Tavily client
+│   ├── exa_search.py            # Exa client
+│   └── pdf_generator.py         # ReportLab PDF generator (collision-safe filenames)
 ├── docs/
 │   └── HALLUCINATION_REDUCTION_STRATEGY.md
-├── tests/
-├── outputs/
-├── .env
+├── .env.example                 # Root environment template
 ├── .gitignore
 ├── README.md
 └── requirements.txt
@@ -158,199 +158,175 @@ KnowYourCompany/
 
 | Technology | Purpose |
 |---|---|
-| Python | Backend and agent implementation |
+| Python 3.11+ | Backend and agent implementation |
 | LangGraph | Workflow, state, routing, HITL, checkpointing |
+| LangGraph Postgres | Persistent session checkpointer across restarts |
 | Gemini | Identity verification, relevance judgment, analysis, report generation |
 | Tavily | Web research |
 | Exa | Additional web research |
-| FastAPI | Backend API |
+| FastAPI | Backend REST API |
 | Uvicorn | ASGI server |
 | Next.js | Frontend framework |
 | React | UI |
 | Tailwind CSS | Styling |
-| ReportLab | PDF generation |
-| python-dotenv | Environment variable loading |
+| Supabase Storage | Private cloud PDF report storage |
+| Supabase Postgres | Session and state checkpoint persistence |
+| ReportLab | Placement PDF generation |
+
+---
+
+## Supabase Setup Guide
+
+### 1. Create Storage Bucket
+1. In your Supabase Dashboard, go to **Storage**.
+2. Click **New bucket**.
+3. Name: `placement-reports`
+4. Make sure **Public bucket** is **OFF** (Private bucket).
+5. Click **Save bucket**.
+
+### 2. Obtain API Credentials
+1. In **Project Settings** → **API**:
+   - Copy **Project URL** (`SUPABASE_URL`)
+   - Copy **anon public** (`SUPABASE_ANON_KEY`)
+   - Copy **service_role secret** (`SUPABASE_SERVICE_ROLE_KEY`)
+   *(The service-role key remains strictly on the backend and is never exposed to the frontend).*
+
+### 3. Obtain Database Connection String
+1. In **Project Settings** → **Database** → **Connection string**.
+2. Select **URI** (Session or Transaction pooler).
+3. Copy the URI and insert your project password:
+   ```text
+   postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require
+   ```
+4. Set this as `SUPABASE_DB_URL` in `.env`.
+5. Note: LangGraph automatically provisions all necessary tables (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`) via `checkpointer.setup()` upon server start.
+
+---
 
 ## Environment Variables
 
-Create a `.env` file in the project root:
+### Backend (`.env` in root)
 
 ```env
+# LLM and Search APIs
 GOOGLE_API_KEY=your_google_api_key
 TAVILY_API_KEY=your_tavily_api_key
 EXA_API_KEY=your_exa_api_key
+
+# Supabase Configuration (Backend only)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_STORAGE_BUCKET=placement-reports
+
+# Supabase Postgres Checkpointer (Session persistence)
+SUPABASE_DB_URL=postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require
+
+# Frontend URL for CORS
+FRONTEND_URL=http://localhost:3000
 ```
 
-Do not commit real API keys.
+### Frontend (`frontend/.env.local`)
 
-## Installation
-
-### Clone
-
-```bash
-git clone https://github.com/sujitx-vs/KnowYourCompany.git
-cd KnowYourCompany
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
-### Create a virtual environment
+---
 
-Windows:
+## Local Installation & Development
+
+### 1. Backend Setup
 
 ```bash
+# Create virtual environment
 python -m venv venv
+
+# Activate virtual environment
+# Windows:
 venv\Scripts\activate
-```
-
-macOS/Linux:
-
-```bash
-python3 -m venv venv
+# macOS/Linux:
 source venv/bin/activate
-```
 
-### Install backend dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Start backend
+uvicorn backend.main:app --reload
 ```
 
-### Install frontend dependencies
+### 2. Frontend Setup
 
 ```bash
 cd frontend
 npm install
-cd ..
-```
-
-## Running the Application
-
-Backend:
-
-```bash
-uvicorn backend.main:app --reload
-```
-
-Frontend:
-
-```bash
-cd frontend
 npm run dev
 ```
 
-Local URLs:
+Local endpoints:
+- Frontend: `http://localhost:3000`
+- Backend: `http://127.0.0.1:8000`
+- API Swagger Docs: `http://127.0.0.1:8000/docs`
 
-```text
-Frontend: http://localhost:3000
-Backend:  http://127.0.0.1:8000
-API Docs: http://127.0.0.1:8000/docs
-```
+---
+
+## Cloud Deployment Guide
+
+### Why Not Vercel for the Backend?
+- **Execution Timeouts**: Vercel Serverless Functions have execution duration limits (10–15s on free tier, 60s max).
+- **Agent Workload**: KnowYourCompany performs parallel searches across Tavily and Exa, followed by multiple Gemini reasoning passes and PDF compilation. Research tasks typically take 30 to 60 seconds.
+- **Recommended Strategy**: Deploy the **Next.js frontend to Vercel** (for high-speed static/edge delivery) and the **FastAPI backend to Render, Railway, Fly.io, or Google Cloud Run** (for long-running ASGI execution).
+
+### Step 1: Deploy Backend to Render (Recommended)
+1. Push your repository to GitHub.
+2. Sign in to [Render](https://render.com) and click **New +** → **Web Service**.
+3. Connect your repository.
+4. Settings:
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+5. Under **Environment Variables**, add:
+   - `GOOGLE_API_KEY`
+   - `TAVILY_API_KEY`
+   - `EXA_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_STORAGE_BUCKET=placement-reports`
+   - `SUPABASE_DB_URL`
+   - `FRONTEND_URL` *(set to your Vercel frontend URL, e.g. `https://your-app.vercel.app`)*
+6. Click **Deploy Web Service**. Render provides your live backend URL (e.g., `https://knowyourcompany-api.onrender.com`).
+
+### Step 2: Deploy Frontend to Vercel
+1. Sign in to [Vercel](https://vercel.com) and click **Add New** → **Project**.
+2. Select your repository.
+3. In project configuration:
+   - Set **Root Directory**: `frontend`
+   - Framework Preset: `Next.js`
+4. Under **Environment Variables**, add:
+   - `NEXT_PUBLIC_API_URL`: Your live backend URL from Render (e.g., `https://knowyourcompany-api.onrender.com`)
+5. Click **Deploy**.
+
+---
 
 ## API Endpoints
 
 ### `GET /`
-Health check.
+Health check and Supabase status.
 
 ### `POST /research`
-Starts company research.
-
-Example:
-
-```json
-{
-  "company_name": "TCS"
-}
-```
+Starts company research. Returns unique `thread_id` and `available_domains` upon HITL pause.
 
 ### `POST /select-domain`
-Resumes the paused LangGraph thread after domain selection.
+Resumes research with human-selected domain. Compiles report, uploads PDF to Supabase Storage, and returns `pdf_path` and `pdf_url` (signed URL).
 
-### `GET /view-pdf`
-Serves a generated PDF for browser preview.
+### `GET /view-pdf?path=...`
+Redirects to the Supabase signed URL (or streams local PDF during development).
 
-### `GET /download-pdf`
-Serves a generated PDF as a download.
+### `GET /download-pdf?path=...`
+Redirects to download signed URL (or serves local PDF with attachment header).
 
-## Report Structure
-
-### Part A — Company Research
-1. Company Overview
-2. Products & Services
-3. Technologies & Business Domains
-4. Recent Developments
-5. Roles & Hiring Areas
-
-### Part B — Selected Domain
-1. Domain Relevance to the Company
-2. Relevant Technologies & Tools
-3. Skills to Prepare
-4. Important Concepts to Study
-5. Relevant Project Areas
-6. Likely Technical Interview Topics
-7. Company-Specific Preparation Advice
-
-## PDF Output
-
-Generated reports are stored under:
-
-```text
-outputs/
-```
-
-The web interface supports:
-
-- inline PDF preview
-- open in a new browser tab
-- direct download
-
-## LangGraph State
-
-```python
-class ResearchState(TypedDict):
-    company_name: str
-    company_identity: str
-    search_results: list
-    company_evidence_confidence: str
-    analysis: str
-    report: str
-    available_domains: list
-    selected_domain: str
-    domain_search_results: list
-    domain_evidence_confidence: str
-    domain_analysis: str
-    pdf_path: str
-```
-
-## Gemini Model Fallback
-
-```python
-GEMINI_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash"
-]
-```
-
-## Current Limitations
-
-- External API availability and quotas affect execution.
-- `MemorySaver` is in-process and not persistent across backend restarts.
-- Public information for small/private companies may be sparse.
-- Evidence confidence is LLM-assisted rather than mathematically calibrated.
-- Search snippets may omit information available on the source page.
-- Local PDF storage is suitable for development but not ideal for production.
-- Frontend API URLs and backend CORS settings currently target local development and should become environment-based for deployment.
-
-## Deployment Status
-
-The application is complete for local development.
-
-Before production deployment, the main areas to address are:
-
-- hosted FastAPI backend
-- persistent LangGraph checkpoints
-- persistent PDF/object storage
-- environment-based frontend API URL
-- production CORS settings
+---
 
 ## Disclaimer
 
@@ -358,6 +334,5 @@ KnowYourCompany uses public web search results and AI-generated analysis. Inform
 
 ## Author
 
-**Sujith V S**
-
-GitHub: https://github.com/sujitx-vs
+**Sujith V S**  
+GitHub: [https://github.com/sujitx-vs](https://github.com/sujitx-vs)

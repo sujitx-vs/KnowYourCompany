@@ -1,11 +1,20 @@
-from fastapi import FastAPI
+import os
+import re
+import uuid
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from agent.graph import graph
+from backend.supabase_client import (
+    is_supabase_configured,
+    get_report_signed_url
+)
 from langgraph.types import Command
 
+load_dotenv()
 
 # ============================================================
 # FASTAPI APPLICATION
@@ -25,14 +34,20 @@ app = FastAPI(
 # CORS CONFIGURATION
 # ============================================================
 
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+frontend_url = os.getenv("FRONTEND_URL", "").strip()
+if frontend_url and frontend_url not in allowed_origins:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +76,8 @@ def health_check():
 
     return {
         "status": "running",
-        "message": "KnowYourCompany API is running."
+        "message": "KnowYourCompany API is running.",
+        "supabase_configured": is_supabase_configured()
     }
 
 
@@ -71,10 +87,31 @@ def health_check():
 
 @app.get("/view-pdf")
 def view_pdf(path: str):
+    # 1. If path is already an external signed URL, redirect directly
+    if path.startswith("http://") or path.startswith("https://"):
+        return RedirectResponse(url=path)
 
-    return FileResponse(
-        path=path,
-        media_type="application/pdf"
+    # 2. If Supabase is configured and path is a storage object path
+    if is_supabase_configured() and not os.path.exists(path):
+        try:
+            signed_url = get_report_signed_url(path, expires_in=3600)
+            return RedirectResponse(url=signed_url)
+        except Exception as e:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Report not found in cloud storage: {e}"
+            )
+
+    # 3. Local file fallback
+    if os.path.exists(path):
+        return FileResponse(
+            path=path,
+            media_type="application/pdf"
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail="PDF report file could not be found."
     )
 
 
@@ -84,11 +121,32 @@ def view_pdf(path: str):
 
 @app.get("/download-pdf")
 def download_pdf(path: str):
+    # 1. If path is already an external signed URL, redirect directly
+    if path.startswith("http://") or path.startswith("https://"):
+        return RedirectResponse(url=path)
 
-    return FileResponse(
-        path=path,
-        media_type="application/pdf",
-        filename="placement_report.pdf"
+    # 2. If Supabase is configured and path is a storage object path
+    if is_supabase_configured() and not os.path.exists(path):
+        try:
+            signed_url = get_report_signed_url(path, expires_in=3600)
+            return RedirectResponse(url=signed_url)
+        except Exception as e:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Report not found in cloud storage: {e}"
+            )
+
+    # 3. Local file fallback
+    if os.path.exists(path):
+        return FileResponse(
+            path=path,
+            media_type="application/pdf",
+            filename="placement_report.pdf"
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail="PDF report file could not be found."
     )
 
 
@@ -133,20 +191,24 @@ def start_research(
 
         "domain_analysis": "",
 
-        "pdf_path": ""
+        "pdf_path": "",
+        "pdf_url": ""
     }
 
 
     # --------------------------------------------------------
-    # THREAD CONFIGURATION
+    # UNIQUE THREAD CONFIGURATION
     # --------------------------------------------------------
 
-    thread_id = (
-        "company-research-"
-        + company_name
-        .lower()
-        .replace(" ", "-")
-    )
+    safe_name = re.sub(
+        r"[^a-zA-Z0-9]+",
+        "-",
+        company_name.lower()
+    ).strip("-")
+
+    session_id = uuid.uuid4().hex[:8]
+
+    thread_id = f"company-research-{safe_name}-{session_id}"
 
 
     config = {
@@ -248,11 +310,24 @@ def select_domain(
         ""
     )
 
+    pdf_url = result.get(
+        "pdf_url",
+        ""
+    )
+
+    # If Supabase is configured and pdf_url was not populated, generate signed URL
+    if is_supabase_configured() and pdf_path and not pdf_url:
+        try:
+            pdf_url = get_report_signed_url(pdf_path, expires_in=3600)
+        except Exception as e:
+            print(f"[Supabase] Could not generate signed URL: {e}")
+
 
     return {
         "status": "completed",
         "thread_id": thread_id,
         "selected_domain": selected_domain,
         "pdf_path": pdf_path,
+        "pdf_url": pdf_url,
         "result": result
     }

@@ -6,3 +6,6 @@ exa-py
 reportlab
 fastapi
 uvicorn
+supabase
+langgraph-checkpoint-postgres
+psycopg[binary,pool]

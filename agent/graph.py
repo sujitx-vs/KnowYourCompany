@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+
 from langgraph.graph import (
     StateGraph,
     START,
@@ -7,6 +10,8 @@ from langgraph.graph import (
 from langgraph.checkpoint.memory import (
     MemorySaver
 )
+
+load_dotenv()
 
 from agent.state import ResearchState
 
@@ -165,10 +170,42 @@ builder.add_edge(
 
 
 # ============================================================
-# CHECKPOINT MEMORY
+# CHECKPOINTER INITIALIZATION
 # ============================================================
 
-memory = MemorySaver()
+def get_checkpointer():
+    """
+    Initialize persistent PostgresSaver checkpointer using Supabase DB URL if provided.
+    Falls back gracefully to in-memory MemorySaver for local development.
+    """
+    db_url = (
+        os.getenv("SUPABASE_DB_URL", "").strip()
+        or os.getenv("DATABASE_URL", "").strip()
+    )
+
+    if db_url:
+        try:
+            from psycopg_pool import ConnectionPool
+            from langgraph.checkpoint.postgres import PostgresSaver
+
+            pool = ConnectionPool(
+                conninfo=db_url,
+                max_size=10,
+                kwargs={"autocommit": True}
+            )
+            checkpointer = PostgresSaver(pool)
+            checkpointer.setup()
+            print("[LangGraph] Persistent PostgresSaver checkpointer initialized with Supabase Postgres.")
+            return checkpointer
+        except Exception as e:
+            print(f"[LangGraph] Warning: Could not connect to Supabase Postgres ({e}). Falling back to MemorySaver.")
+            return MemorySaver()
+
+    print("[LangGraph] SUPABASE_DB_URL not configured. Using MemorySaver for local development.")
+    return MemorySaver()
+
+
+checkpointer = get_checkpointer()
 
 
 # ============================================================
@@ -176,5 +213,5 @@ memory = MemorySaver()
 # ============================================================
 
 graph = builder.compile(
-    checkpointer=memory
+    checkpointer=checkpointer
 )

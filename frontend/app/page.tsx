@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 export default function Home() {
   const [companyName, setCompanyName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,6 +15,7 @@ export default function Home() {
   const [selectedDomain, setSelectedDomain] = useState("");
 
   const [pdfPath, setPdfPath] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
 
 
   // ============================================================
@@ -34,9 +38,10 @@ export default function Home() {
       setDomains([]);
       setSelectedDomain("");
       setPdfPath("");
+      setPdfUrl("");
 
       const response = await fetch(
-        "http://127.0.0.1:8000/research",
+        `${API_BASE_URL}/research`,
         {
           method: "POST",
           headers: {
@@ -137,7 +142,7 @@ export default function Home() {
       );
 
       const response = await fetch(
-        "http://127.0.0.1:8000/select-domain",
+        `${API_BASE_URL}/select-domain`,
         {
           method: "POST",
           headers: {
@@ -173,9 +178,12 @@ export default function Home() {
           []
         );
 
-        if (data.pdf_path) {
+        if (data.pdf_path || data.pdf_url) {
           setPdfPath(
-            data.pdf_path
+            data.pdf_path || ""
+          );
+          setPdfUrl(
+            data.pdf_url || ""
           );
 
           setMessage(
@@ -184,7 +192,7 @@ export default function Home() {
 
         } else {
           setMessage(
-            `Research completed for ${domain}, but no PDF path was returned.`
+            `Research completed for ${domain}, but no PDF report was returned.`
           );
         }
 
@@ -216,14 +224,18 @@ export default function Home() {
   // PDF URLS
   // ============================================================
 
-  const pdfViewUrl = pdfPath
-    ? `http://127.0.0.1:8000/view-pdf?path=${encodeURIComponent(
+  const pdfViewUrl = pdfUrl
+    ? pdfUrl
+    : pdfPath
+    ? `${API_BASE_URL}/view-pdf?path=${encodeURIComponent(
         pdfPath
       )}`
     : "";
 
-  const pdfDownloadUrl = pdfPath
-    ? `http://127.0.0.1:8000/download-pdf?path=${encodeURIComponent(
+  const pdfDownloadUrl = pdfUrl
+    ? pdfUrl
+    : pdfPath
+    ? `${API_BASE_URL}/download-pdf?path=${encodeURIComponent(
         pdfPath
       )}`
     : "";
@@ -524,7 +536,7 @@ export default function Home() {
         {/* PDF REPORT */}
         {/* ================================================== */}
 
-        {pdfPath && (
+        {(pdfPath || pdfUrl) && (
           <div className="mt-10 w-full max-w-4xl">
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-indigo-950/20">
@@ -630,7 +642,7 @@ export default function Home() {
         {/* Initial Explanation */}
         {!domains.length &&
           !selectedDomain &&
-          !pdfPath && (
+          !(pdfPath || pdfUrl) && (
 
             <p className="mt-4 text-sm text-slate-500">
 

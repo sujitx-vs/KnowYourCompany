@@ -26,3 +26,4 @@ class ResearchState(TypedDict):
 
     # Output
     pdf_path: str
+    pdf_url: str

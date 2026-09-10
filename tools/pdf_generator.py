@@ -1,6 +1,7 @@
 import os
 import re
 import html
+import uuid
 
 from reportlab.lib import colors
 from reportlab.lib.enums import (
@@ -755,7 +756,8 @@ def create_placement_pdf(
     report,
     selected_domain="",
     domain_analysis="",
-    output_dir="outputs"
+    output_dir="outputs",
+    report_id=None
 ):
     """
     Generate the final placement preparation PDF.
@@ -775,15 +777,18 @@ def create_placement_pdf(
 
 
     # --------------------------------------------------------
-    # Safe filename
+    # Safe and unique filename
     # --------------------------------------------------------
 
     safe_company = clean_filename(
         company_name
     )
 
+    if not report_id:
+        report_id = uuid.uuid4().hex[:8]
+
     filename = (
-        f"{safe_company}-"
+        f"{safe_company}-{report_id}-"
         f"placement-report.pdf"
     )
 
