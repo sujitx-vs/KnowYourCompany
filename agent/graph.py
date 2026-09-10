@@ -197,6 +197,7 @@ def get_checkpointer():
                 }
             )
             checkpointer = PostgresSaver(pool)
+            checkpointer.supports_pipeline = False
             checkpointer.setup()
             print("[LangGraph] Persistent PostgresSaver checkpointer initialized with Supabase Postgres.")
             return checkpointer
