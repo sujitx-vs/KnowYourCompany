@@ -1,5 +1,9 @@
 # KnowYourCompany
 
+> **Live Demo**: [https://know-your-company-pi.vercel.app/](https://know-your-company-pi.vercel.app/)  
+> **API Backend**: [https://knowyourcompany-api.onrender.com](https://knowyourcompany-api.onrender.com)  
+> **API Docs**: [https://knowyourcompany-api.onrender.com/docs](https://knowyourcompany-api.onrender.com/docs)
+
 KnowYourCompany is an AI-powered company research and campus-placement preparation agent built with **LangGraph, Gemini, Tavily, Exa, FastAPI, Next.js, Supabase, and ReportLab**.
 
 It researches a company from multiple web sources, verifies company identity, filters unrelated evidence, analyzes evidence quality, generates a placement-focused company report, pauses for **Human-in-the-Loop (HITL)** domain selection, performs domain-specific research, and produces a private downloadable PDF report through a modern web interface.
@@ -196,10 +200,10 @@ KnowYourCompany/
 2. Select **URI** (Session or Transaction pooler).
 3. Copy the URI and insert your project password:
    ```text
-   postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require
+   postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres?sslmode=require
    ```
 4. Set this as `SUPABASE_DB_URL` in `.env`.
-5. Note: LangGraph automatically provisions all necessary tables (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`) via `checkpointer.setup()` upon server start.
+5. Note: Port 5432 (Session mode) is recommended with Supabase connection poolers. LangGraph automatically provisions all necessary tables (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`) via `checkpointer.setup()` upon server start.
 
 ---
 
