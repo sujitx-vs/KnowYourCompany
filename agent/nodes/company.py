@@ -1,7 +1,6 @@
 from agent.state import ResearchState
 
 from agent.services.gemini import (
-    extract_text,
     invoke_gemini
 )
 
@@ -14,6 +13,12 @@ from agent.services.evidence import (
     filter_relevant_results
 )
 
+from agent.services.parsing import (
+    parse_confidence_analysis,
+    format_evidence,
+    parse_numbered_list
+)
+
 
 # ============================================================
 # VERIFY COMPANY
@@ -23,9 +28,18 @@ def verify_company(
     state: ResearchState
 ):
 
+    # --------------------------------------------------------
+    # USE CACHED COMPANY IDENTITY
+    # --------------------------------------------------------
+
     if state.get("company_identity"):
-        print("\nUsing cached company identity.")
+
+        print(
+            "\nUsing cached company identity."
+        )
+
         return {}
+
 
     company = state[
         "company_name"
@@ -36,6 +50,11 @@ def verify_company(
         f"{company}..."
     )
 
+
+    # --------------------------------------------------------
+    # SEARCH FOR COMPANY IDENTITY
+    # --------------------------------------------------------
+
     query = (
         f'"{company}" '
         f'company official website '
@@ -45,6 +64,11 @@ def verify_company(
     results = parallel_search(
         query
     )
+
+
+    # --------------------------------------------------------
+    # BUILD IDENTITY RESEARCH TEXT
+    # --------------------------------------------------------
 
     research_text = ""
 
@@ -64,6 +88,12 @@ def verify_company(
             f"Content: "
             f"{result.get('content', '')}\n"
         )
+
+
+    # --------------------------------------------------------
+    # GEMINI:
+    # SEMANTIC COMPANY IDENTITY VERIFICATION
+    # --------------------------------------------------------
 
     prompt = f"""
 You are verifying the identity of a company before
@@ -109,13 +139,11 @@ or general company research.
         prompt
     )
 
-    identity = extract_text(
-        identity
-    )
 
     print(
         "\nCompany identity verified."
     )
+
 
     return {
         "company_identity":
@@ -131,9 +159,18 @@ def research_company(
     state: ResearchState
 ):
 
+    # --------------------------------------------------------
+    # USE CACHED COMPANY RESEARCH
+    # --------------------------------------------------------
+
     if state.get("search_results"):
-        print("\nUsing cached company research results.")
+
+        print(
+            "\nUsing cached company research results."
+        )
+
         return {}
+
 
     print(
         f"\nResearching "
@@ -143,6 +180,11 @@ def research_company(
     company = state[
         "company_name"
     ]
+
+
+    # --------------------------------------------------------
+    # COMPANY SEARCH QUERIES
+    # --------------------------------------------------------
 
     queries = [
         f"{company} company overview",
@@ -171,6 +213,7 @@ def research_company(
 
 
     # --------------------------------------------------------
+    # PYTHON:
     # REMOVE DUPLICATES ACROSS ALL QUERIES
     # --------------------------------------------------------
 
@@ -180,7 +223,8 @@ def research_company(
 
 
     # --------------------------------------------------------
-    # ONE GEMINI RELEVANCE FILTER PASS
+    # GEMINI:
+    # ONE BATCHED SEMANTIC RELEVANCE FILTER
     # --------------------------------------------------------
 
     filtered_results = (
@@ -214,6 +258,7 @@ def analyze_research(
 
 
     # --------------------------------------------------------
+    # PYTHON:
     # HANDLE EMPTY EVIDENCE WITHOUT GEMINI
     # --------------------------------------------------------
 
@@ -243,35 +288,19 @@ def analyze_research(
 
 
     # --------------------------------------------------------
-    # BUILD RESEARCH EVIDENCE TEXT
+    # PYTHON:
+    # FORMAT EVIDENCE
     # --------------------------------------------------------
 
-    research_text = ""
-
-    for index, result in enumerate(
+    research_text = format_evidence(
         state["search_results"],
-        start=1
-    ):
-
-        research_text += f"""
-SOURCE ID: S{index}
-
-TITLE:
-{result["title"]}
-
-URL:
-{result["url"]}
-
-CONTENT:
-{result["content"]}
-
--------------------------
-"""
+        prefix="S"
+    )
 
 
     # --------------------------------------------------------
-    # ONE GEMINI CALL:
-    # CONFIDENCE + COMPANY ANALYSIS
+    # GEMINI:
+    # ONE CALL FOR CONFIDENCE + ANALYSIS
     # --------------------------------------------------------
 
     prompt = f"""
@@ -445,61 +474,17 @@ INSUFFICIENT
         prompt
     )
 
-    response = extract_text(
-        response
-    )
-
 
     # --------------------------------------------------------
+    # PYTHON:
     # PARSE CONFIDENCE + ANALYSIS
     # --------------------------------------------------------
 
-    confidence = "LOW"
-    analysis_text = ""
-
-    if "ANALYSIS:" in response:
-
-        confidence_section, analysis_text = (
-            response.split(
-                "ANALYSIS:",
-                1
-            )
+    confidence, analysis_text = (
+        parse_confidence_analysis(
+            response
         )
-
-        confidence_section = (
-            confidence_section
-            .replace(
-                "CONFIDENCE:",
-                ""
-            )
-            .strip()
-            .upper()
-        )
-
-        allowed_confidence = {
-            "HIGH",
-            "MEDIUM",
-            "LOW",
-            "INSUFFICIENT"
-        }
-
-        if (
-            confidence_section
-            in allowed_confidence
-        ):
-            confidence = (
-                confidence_section
-            )
-
-        analysis_text = (
-            analysis_text.strip()
-        )
-
-    else:
-
-        analysis_text = (
-            response.strip()
-        )
+    )
 
 
     print(
@@ -509,7 +494,8 @@ INSUFFICIENT
 
 
     # --------------------------------------------------------
-    # HANDLE INSUFFICIENT EVIDENCE
+    # PYTHON:
+    # HANDLE INSUFFICIENT CONFIDENCE
     # --------------------------------------------------------
 
     if confidence == "INSUFFICIENT":
@@ -529,10 +515,6 @@ INSUFFICIENT
                 )
         }
 
-
-    # --------------------------------------------------------
-    # RETURN COMBINED RESULT
-    # --------------------------------------------------------
 
     return {
         "analysis":
@@ -554,6 +536,12 @@ def generate_report(
     print(
         "\nGenerating structured report..."
     )
+
+
+    # --------------------------------------------------------
+    # GEMINI:
+    # REPORT WRITING REQUIRES LANGUAGE GENERATION
+    # --------------------------------------------------------
 
     prompt = f"""
 You are an expert career research assistant helping a student
@@ -643,9 +631,6 @@ Rules:
         prompt
     )
 
-    report_text = extract_text(
-        report_text
-    )
 
     return {
         "report":
@@ -661,13 +646,28 @@ def generate_domains(
     state: ResearchState
 ):
 
+    # --------------------------------------------------------
+    # USE CACHED DOMAIN LIST
+    # --------------------------------------------------------
+
     if state.get("available_domains"):
-        print("\nUsing cached domain list.")
+
+        print(
+            "\nUsing cached domain list."
+        )
+
         return {}
+
 
     print(
         "\nIdentifying relevant job domains..."
     )
+
+
+    # --------------------------------------------------------
+    # GEMINI:
+    # SEMANTIC DOMAIN IDENTIFICATION
+    # --------------------------------------------------------
 
     prompt = f"""
 You are analyzing a company for a college student preparing
@@ -704,46 +704,16 @@ Example:
         prompt
     )
 
-    domains_text = extract_text(
+
+    # --------------------------------------------------------
+    # PYTHON:
+    # PARSE NUMBERED DOMAIN LIST
+    # --------------------------------------------------------
+
+    domains = parse_numbered_list(
         domains_text
     )
 
-    if not isinstance(
-        domains_text,
-        str
-    ):
-
-        raise TypeError(
-            "Domain response could not "
-            "be converted to text."
-        )
-
-    domains = []
-
-    for line in (
-        domains_text.splitlines()
-    ):
-
-        line = line.strip()
-
-        if not line:
-            continue
-
-        if (
-            line[0].isdigit()
-            and "." in line
-        ):
-
-            domain = line.split(
-                ".",
-                1
-            )[-1].strip()
-
-            if domain:
-
-                domains.append(
-                    domain
-                )
 
     if not domains:
 
@@ -751,6 +721,7 @@ Example:
             "Gemini did not return "
             "any valid job domains."
         )
+
 
     return {
         "available_domains":
