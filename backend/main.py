@@ -227,10 +227,17 @@ def start_research(
     # RUN LANGGRAPH
     # --------------------------------------------------------
 
-    result = graph.invoke(
-        initial_state,
-        config=config
-    )
+    try:
+        result = graph.invoke(
+            initial_state,
+            config=config
+        )
+    except Exception as e:
+        print(f"[Backend Error] start_research failed: {e}")
+        return {
+            "status": "error",
+            "message": f"Agent execution error: {e}"
+        }
 
 
     # --------------------------------------------------------
@@ -302,12 +309,19 @@ def select_domain(
     }
 
 
-    result = graph.invoke(
-        Command(
-            resume=selected_domain
-        ),
-        config=config
-    )
+    try:
+        result = graph.invoke(
+            Command(
+                resume=selected_domain
+            ),
+            config=config
+        )
+    except Exception as e:
+        print(f"[Backend Error] select_domain failed: {e}")
+        return {
+            "status": "error",
+            "message": f"Agent execution error: {e}"
+        }
 
 
     pdf_path = result.get(

@@ -2,6 +2,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
 
 import os
+import time
 
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -19,9 +20,10 @@ load_dotenv()
 # ============================================================
 
 GEMINI_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash"
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3-flash-preview"
 ]
 
 
@@ -93,7 +95,9 @@ def invoke_gemini(prompt):
                 model=model_name,
                 google_api_key=os.getenv(
                     "GOOGLE_API_KEY"
-                )
+                ),
+                timeout=30,
+                max_retries=2
             )
 
             silent_stdout = StringIO()
@@ -145,6 +149,8 @@ def invoke_gemini(prompt):
             )
 
             if should_fallback:
+                if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
+                    time.sleep(2)
                 continue
 
             raise
