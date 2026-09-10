@@ -39,15 +39,20 @@ allowed_origins = [
     "http://127.0.0.1:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
+    "https://know-your-company-pi.vercel.app",
 ]
 
-frontend_url = os.getenv("FRONTEND_URL", "").strip()
-if frontend_url and frontend_url not in allowed_origins:
-    allowed_origins.append(frontend_url)
+frontend_env = os.getenv("FRONTEND_URL", "").strip()
+if frontend_env:
+    for origin in frontend_env.split(","):
+        cleaned = origin.strip().rstrip("/")
+        if cleaned and cleaned not in allowed_origins:
+            allowed_origins.append(cleaned)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
