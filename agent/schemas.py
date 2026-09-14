@@ -19,7 +19,7 @@ class Relevance(BaseModel):
 
 
 class Claim(BaseModel):
-    text: str = Field(min_length=1, max_length=1600)
+    text: str = Field(min_length=1, max_length=2200)
     kind: Literal["fact", "recommendation", "limitation"]
     source_ids: list[str] = Field(max_length=15)
 
@@ -33,7 +33,7 @@ class Claim(BaseModel):
 
 class Section(BaseModel):
     title: str = Field(min_length=1, max_length=120)
-    claims: list[Claim] = Field(min_length=1, max_length=8)
+    claims: list[Claim] = Field(min_length=1, max_length=10)
 
 
 class Domain(BaseModel):
@@ -45,7 +45,7 @@ class Domain(BaseModel):
 class Brief(BaseModel):
     confidence: Confidence
     summary: str = Field(max_length=700, description="Describe evidence coverage and limitations, not uncited company facts")
-    sections: list[Section] = Field(max_length=8)
+    sections: list[Section] = Field(max_length=10)
     domains: list[Domain] = Field(max_length=8, description="Company brief only; empty for domain preparation")
 
 

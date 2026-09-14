@@ -50,10 +50,12 @@ def analyze_research(state):
         brief = Brief(confidence="INSUFFICIENT", summary="There is not enough verified evidence to create a company brief.", sections=[], domains=[])
     else:
         brief = invoke_gemini(
-            "Create a concise company brief for an interview candidate. Sections: Company overview; Products and services; "
+            "Create a useful, detailed company placement brief for an interview candidate; do not compress it into a short summary. "
+            "Use these sections with several concrete claims where the supplied evidence supports them: Company overview; Products and services; "
             "Technologies and business areas; Recent developments; Roles and hiring areas. Also select broad career domains "
             "with an evidence-based reason, not vacancies. Every company-specific factual claim and domain needs supplied "
             "source IDs. Never infer technology from industry. Label missing or conflicting evidence as limitations. "
+            "Include meaningful subtopics, named business lines, products, industries, technologies, partnerships and hiring areas rather than repeating one generic sentence. "
             "Summary describes evidence coverage only. No preparation advice in this company brief. "
             "Use INSUFFICIENT if the evidence does not support a reliable brief. " + ("This is a deeper retry: return a shorter complete brief with fewer claims.\n" if state.get("deeper_search") else "\n")
             + json.dumps({"identity": state["identity"], "sources": sources}, ensure_ascii=False), Brief, validator=lambda brief: validate_citations(brief, sources))

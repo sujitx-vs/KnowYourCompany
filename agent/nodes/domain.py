@@ -24,8 +24,9 @@ def analyze_domain(state):
         brief = Brief(confidence="INSUFFICIENT", summary="No verified company-specific evidence connects this domain to the company.", sections=[], domains=[])
     else:
         brief = invoke_gemini(
-            "Build an interview preparation brief for the selected domain. Sections: Domain relevance; Technologies and tools; "
-            "Preparation priorities; Concepts to study; Project ideas; Interview preparation. "
+            "Build a detailed placement preparation brief for the selected domain. Use these sections: Domain relevance; Relevant technologies and tools; "
+            "Skills to prepare; Important concepts to study; Relevant project areas; Likely technical interview topics; Company-specific preparation advice. "
+            "Provide several concrete, useful claims under each section when evidence supports them. Include named platforms, frameworks, methods, project patterns and interview themes; do not collapse the brief into a few generic recommendations. "
             "Company-specific facts require supplied source IDs. Study advice must have kind recommendation, never claim it "
             "is an actual company interview question or requirement. Missing evidence has kind limitation. "
             "Never infer company tools from general industry practice. Summary describes evidence coverage only. "
