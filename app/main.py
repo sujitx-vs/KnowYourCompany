@@ -1,152 +1,43 @@
-from langgraph.types import Command
+"""Small CLI client for the same durable workflow used by the website."""
+import json
+import secrets
+import time
+import httpx
 
-from agent.graph import graph
+def main():
+    name = input("Company name: ").strip()
+    if not name:
+        return
+    token = secrets.token_urlsafe(32)
+    with httpx.Client(base_url="http://127.0.0.1:8000", headers={"Authorization": f"Bearer {token}"}, timeout=30) as client:
+        response = client.post("/runs", json={"company_name": name})
+        response.raise_for_status()
+        run = response.json()
+        print("Session token (keep private to recover this research):", token)
+        last = ""
+        while True:
+            run = client.get(f"/runs/{run['id']}").json()
+            if run["message"] != last:
+                last = run["message"]
+                print(last)
+            if run["status"] == "needs_company_confirmation":
+                if input(f"Research {run['identity']['name']}? [y/N] ").lower() != "y":
+                    client.post(f"/runs/{run['id']}/cancel")
+                    return
+                client.post(f"/runs/{run['id']}/confirm").raise_for_status()
+            elif run["status"] == "awaiting_domain_selection":
+                choices = run["company_brief"]["domains"]
+                for i, domain in enumerate(choices, 1):
+                    print(f"{i}. {domain['name']}")
+                selection = input("Domain number: ")
+                if not selection.isdigit() or not 1 <= int(selection) <= len(choices):
+                    print("Please choose a listed number.")
+                    continue
+                client.post(f"/runs/{run['id']}/domain", json={"selected_domain": choices[int(selection)-1]["name"]}).raise_for_status()
+            elif run["status"] in {"completed", "failed", "insufficient_evidence", "cancelled", "export_failed"}:
+                print(json.dumps(run.get("domain_brief") or run.get("company_brief"), indent=2))
+                return
+            time.sleep(2)
 
-
-# ============================================================
-# COMPANY INPUT
-# ============================================================
-
-company_name = input(
-    "\nEnter company name: "
-).strip()
-
-
-if not company_name:
-
-    raise ValueError(
-        "Company name cannot be empty."
-    )
-
-
-# ============================================================
-# INITIAL STATE
-# ============================================================
-
-initial_state = {
-    "company_name": company_name,
-    "company_identity": "",
-
-    "search_results": [],
-    "company_evidence_confidence": "",
-
-    "analysis": "",
-    "report": "",
-
-    "available_domains": [],
-    "selected_domain": "",
-
-    "domain_search_results": [],
-    "domain_evidence_confidence": "",
-
-    "domain_analysis": ""
-}
-
-
-# ============================================================
-# CONFIG
-# ============================================================
-
-thread_id = (
-    "company-research-"
-    + company_name
-    .lower()
-    .replace(" ", "-")
-)
-
-
-config = {
-
-    "configurable": {
-
-        "thread_id":
-            thread_id
-    }
-}
-
-
-# ============================================================
-# RUN GRAPH
-# ============================================================
-
-result = graph.invoke(
-    initial_state,
-    config=config
-)
-
-
-# ============================================================
-# HUMAN-IN-THE-LOOP
-# ============================================================
-
-if "__interrupt__" in result:
-
-    interrupt_data = result[
-        "__interrupt__"
-    ][0]
-
-    print(
-        "\n=============================="
-    )
-
-    print(
-        "DOMAIN SELECTION"
-    )
-
-    print(
-        "=============================="
-    )
-
-    domains = interrupt_data.value[
-        "available_domains"
-    ]
-
-
-    for i, domain in enumerate(
-        domains,
-        start=1
-    ):
-
-        print(
-            f"{i}. {domain}"
-        )
-
-
-    choice = int(
-        input(
-            "\nEnter the domain number: "
-        )
-    )
-
-
-    if choice < 1 or choice > len(domains):
-
-        raise ValueError(
-            "Invalid domain selection."
-        )
-
-
-    selected_domain = domains[
-        choice - 1
-    ]
-
-
-    print(
-        f"\nSelected domain: "
-        f"{selected_domain}"
-    )
-
-
-    result = graph.invoke(
-
-        Command(
-            resume=selected_domain
-        ),
-
-        config=config
-    )
-
-
-print(
-    "\nGraph completed."
-)
+if __name__ == "__main__":
+    main()

@@ -56,6 +56,9 @@ def ensure_bucket_exists(bucket_name: str = SUPABASE_STORAGE_BUCKET) -> bool:
     try:
         buckets = client.storage.list_buckets()
         existing = [b.name for b in buckets] if buckets else []
+        for bucket in buckets or []:
+            if bucket.name == bucket_name and getattr(bucket, "public", False):
+                raise ValueError("The report bucket must be private")
         if bucket_name not in existing:
             # Create private bucket (public=False)
             client.storage.create_bucket(
@@ -64,7 +67,7 @@ def ensure_bucket_exists(bucket_name: str = SUPABASE_STORAGE_BUCKET) -> bool:
             )
         return True
     except Exception as e:
-        print(f"[Supabase] Note on checking/creating bucket '{bucket_name}': {e}")
+        print(f"[Supabase] Storage setup failed ({type(e).__name__}). Check that the report bucket is private and the backend has access.")
         return False
 
 
@@ -82,8 +85,6 @@ def upload_report_pdf(file_path: str, object_name: str) -> str:
     client = get_supabase_client()
     if not client:
         raise ValueError("Supabase is not configured on the backend.")
-
-    ensure_bucket_exists(SUPABASE_STORAGE_BUCKET)
 
     storage_path = f"reports/{object_name}"
 
@@ -103,7 +104,7 @@ def upload_report_pdf(file_path: str, object_name: str) -> str:
     return storage_path
 
 
-def get_report_signed_url(storage_path: str, expires_in: int = 3600) -> str:
+def get_report_signed_url(storage_path: str, expires_in: int = 300, download: bool = False) -> str:
     """
     Generate a secure time-limited signed URL for viewing or downloading a private PDF report.
     
@@ -120,7 +121,8 @@ def get_report_signed_url(storage_path: str, expires_in: int = 3600) -> str:
 
     res = client.storage.from_(SUPABASE_STORAGE_BUCKET).create_signed_url(
         path=storage_path,
-        expires_in=expires_in
+        expires_in=expires_in,
+        options={"download": True} if download else {}
     )
 
     if isinstance(res, dict):

@@ -1,0 +1,12 @@
+{
+  "sequential_queries": {
+    "median_seconds": 0.504117700000279,
+    "p95_seconds": 0.505348500000764
+  },
+  "bounded_parallel_queries": {
+    "median_seconds": 0.20236375000058615,
+    "p95_seconds": 0.20279610000034154
+  },
+  "median_reduction_percent": 59.9,
+  "scope": "Synthetic search scheduling only; 100ms provider fixtures, ten repeats. Not end-to-end live research."
+}

@@ -30,3 +30,8 @@ run_project.bat/
 node_modules/
 .next/
 out/
+
+# Browser verification artifacts and TypeScript cache
+test-results/
+playwright-report/
+*.tsbuildinfo

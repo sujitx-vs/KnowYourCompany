@@ -1,11 +1,10 @@
-langgraph
-langchain-google-genai
-python-dotenv
-tavily-python
-exa-py
-reportlab
-fastapi
-uvicorn
-supabase
-langgraph-checkpoint-postgres
-psycopg[binary,pool]
+# Direct runtime dependencies; full reproducible environment is requirements.lock.txt.
+langgraph==1.2.11
+langchain-google-genai==4.4.0
+python-dotenv==1.2.3
+reportlab==5.0.1
+fastapi==0.141.1
+uvicorn==0.52.4
+supabase==2.31.0
+psycopg[binary]==3.3.5
+httpx==0.28.1
