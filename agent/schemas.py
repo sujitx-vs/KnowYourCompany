@@ -1,6 +1,6 @@
 """Validated public brief schema shared by the browser and PDF renderer."""
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Confidence = Literal["HIGH", "MEDIUM", "LOW", "INSUFFICIENT"]
 
@@ -21,7 +21,14 @@ class Relevance(BaseModel):
 class Claim(BaseModel):
     text: str = Field(min_length=1, max_length=1600)
     kind: Literal["fact", "recommendation", "limitation"]
-    source_ids: list[str] = Field(max_length=10)
+    source_ids: list[str] = Field(max_length=15)
+
+    @field_validator("source_ids", mode="before")
+    @classmethod
+    def unique_sources(cls, value):
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return list(dict.fromkeys(value))
+        return value
 
 
 class Section(BaseModel):
@@ -42,19 +49,28 @@ class Brief(BaseModel):
     domains: list[Domain] = Field(max_length=8, description="Company brief only; empty for domain preparation")
 
 
-def validate_citations(brief, sources):
+class CitationError(ValueError):
+    def __init__(self, path, code):
+        self.paths = [{"loc": path, "type": code}]
+        super().__init__(code)
+
+
+def validate_citations(brief, sources, *, domain=False):
     allowed = {s["id"] for s in sources}
-    for section in brief.sections:
-        for claim in section.claims:
+    for i, section in enumerate(brief.sections):
+        for j, claim in enumerate(section.claims):
+            path = ["sections", i, "claims", j, "source_ids"]
             if not set(claim.source_ids) <= allowed:
-                raise ValueError("The brief references unavailable evidence")
+                raise CitationError(path, "unknown_source_ids")
             if claim.kind == "fact" and not claim.source_ids:
-                raise ValueError("A company fact has no source")
-    for domain in brief.domains:
-        if not set(domain.source_ids) <= allowed:
-            raise ValueError("A domain references unavailable evidence")
+                raise CitationError(path, "uncited_fact")
+    for i, choice in enumerate(brief.domains):
+        if not set(choice.source_ids) <= allowed:
+            raise CitationError(["domains", i, "source_ids"], "unknown_source_ids")
+    if domain and brief.domains:
+        raise CitationError(["domains"], "domain_preparation_requires_empty_domains")
     if brief.confidence != "INSUFFICIENT" and not brief.sections:
-        raise ValueError("A usable brief must contain sections")
+        raise CitationError(["sections"], "missing_usable_sections")
     return brief.model_dump()
 
 

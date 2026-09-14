@@ -16,6 +16,9 @@ class RunContext:
     cache: object = None
     cache_lease: str = ""
     refresh: bool = False
+    run_id: str = ""
+    phase: str = ""
+    response_budget: Callable | None = None
 
 context = ContextVar("research_context", default=None)
 

@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse,
 from pydantic import BaseModel, Field
 from backend.store import Store, Conflict, QuotaExceeded, ACTIVE
 from backend.worker import Worker
+from backend.retries import retry_info, retries_used
 from backend.config import validate_configuration
 
 log = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ def public_run(run):
         "sources": sources, "researched_at": state.get("researched_at"), "cached_at": state.get("cached_at"),
         "events": run["events"][-15:], "cancel_requested": run["cancel_requested"],
         "completed_nodes": state.get("completed_nodes", []),
+        **retry_info(run),
     }
 
 def summary(runs):
@@ -269,8 +271,11 @@ def create_app(store=None, start_worker=True):
                 raise Conflict("Only a failed step can be retried.")
             if run["lease_until"] > time.time():
                 raise Conflict("The previous attempt is still stopping. Please try again shortly.")
-            if run["retries"] >= 3:
-                raise QuotaExceeded("This research has reached its retry limit.")
+            if retries_used(run) >= 3:
+                raise HTTPException(429, "No manual retries remain for this retry budget. Waiting does not reset it.", headers={"X-Failure-Category": "manual_retries_exhausted"})
+            if "phase_retries" in run:
+                run["phase_retries"][run["phase"]] = retries_used(run) + 1
+            run.pop("failure_category", None)
             run.update(status="queued", attempts=0, not_before=0, retries=run["retries"]+1)
             run.pop("phase_started_at", None)
             db.event(run, "state", message="Retrying from the last saved step.")

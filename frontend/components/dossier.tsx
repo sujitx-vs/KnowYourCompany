@@ -16,7 +16,7 @@ export function CompanySearchForm({ onStart, disabled }: { onStart: (name: strin
   </form>;
 }
 
-const STAGE_NAMES: Record<string, string> = { queued: "Getting ready", identity: "Company identity", company_search: "Public source research", filtering: "Evidence check", company_brief: "Company brief", domain_search: "Career research", domain_brief: "Preparation brief", export: "PDF export" };
+const STAGE_NAMES: Record<string, string> = { brief_correction: "Checking and correcting brief", queued: "Getting ready", identity: "Company identity", company_search: "Public source research", filtering: "Evidence check", company_brief: "Company brief", domain_search: "Career research", domain_brief: "Preparation brief", export: "PDF export" };
 export function ResearchProgress({ run, connection, onCancel, disabled }: { run: ResearchRun; connection: string; onCancel: () => void; disabled: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   const active = ACTIVE.has(run.status);
@@ -56,6 +56,18 @@ export function SourceList({ sources }: { sources: Source[] }) {
   return <section className="source-register" id="sources"><span className="eyebrow">THE EVIDENCE BEHIND THE BRIEF</span><h2>Source register <span>{sources.length}</span></h2><p>Follow the references. Check the context. Make your own judgement.</p><div>{sources.map(source => <article className="source-row" id={`source-${source.id}`} key={source.id}><span className="source-id">{source.id}</span><div><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || new URL(source.url).hostname} <span aria-hidden="true">↗</span></a><p>{new URL(source.url).hostname} · {source.official ? "Official source" : "Public source"}{source.retrieved_at ? ` · Retrieved ${source.retrieved_at.slice(0, 10)}` : ""}</p></div></article>)}</div></section>;
 }
 
+export function RetryNotice({ run }: { run: ResearchRun }) {
+  const scope = run.retry_scope === "legacy_shared" ? "this saved research" : "this phase";
+  return <p role="status">{run.retries_remaining === 0
+    ? `No manual retries remain for ${scope}. Waiting does not reset this limit.`
+    : run.retries_remaining !== undefined
+      ? `${run.retries_remaining} manual retries remain for ${scope}.${run.retry_allowed ? "" : " Retry is currently unavailable."}`
+      : "Retry availability could not be confirmed. Refresh to check the saved status."}
+    {run.failure_category === "provider_rate_limit" && " The AI provider rate-limited this request; this is separate from your manual retry allowance."}
+    {run.failure_category === "automatic_attempts_exhausted" && " Automatic recovery has reached its attempt limit."}
+  </p>;
+}
+
 export function ReportActions({ run, onRetry, disabled }: { run: ResearchRun; onRetry: () => void; disabled: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -73,7 +85,7 @@ export function ReportActions({ run, onRetry, disabled }: { run: ResearchRun; on
     } catch (err) { tab?.close(); setError(err instanceof Error ? err.message : "The report could not be opened."); }
     finally { setBusy(false); }
   }
-  return <section className="export-panel"><div><span className="eyebrow">TAKE IT WITH YOU</span><h2>Your interview companion.</h2><p>{run.export_status === "ready" ? "Your complete brief, with its sources, ready to keep." : run.export_status === "failed" ? "Your web brief is safe. The PDF export needs another attempt." : "Your web brief is ready. The PDF is being prepared."}</p></div><div className="export-buttons">{run.export_status === "ready" ? <><button className="primary" disabled={busy} onClick={() => void open("download")}>{busy ? "Opening…" : "Download PDF ↓"}</button><button className="secondary" disabled={busy} onClick={() => void open("view")}>Preview ↗</button></> : run.export_status === "failed" ? <button className="primary" onClick={onRetry} disabled={disabled}>Retry PDF export</button> : <span className="small">Preparing export…</span>}</div>{error && <p role="alert" className="error">{error}</p>}</section>;
+  return <section className="export-panel"><div><span className="eyebrow">TAKE IT WITH YOU</span><h2>Your interview companion.</h2><p>{run.export_status === "ready" ? "Your complete brief, with its sources, ready to keep." : run.export_status === "failed" ? "Your web brief is safe. The PDF export needs another attempt." : "Your web brief is ready. The PDF is being prepared."}</p></div><div className="export-buttons">{run.export_status === "ready" ? <><button className="primary" disabled={busy} onClick={() => void open("download")}>{busy ? "Opening…" : "Download PDF ↓"}</button><button className="secondary" disabled={busy} onClick={() => void open("view")}>Preview ↗</button></> : run.export_status === "failed" ? <div><RetryNotice run={run} />{run.retry_allowed === true && <button className="primary" onClick={onRetry} disabled={disabled}>Retry PDF export</button>}</div> : <span className="small">Preparing export…</span>}</div>{error && <p role="alert" className="error">{error}</p>}</section>;
 }
 
 export function Feedback({ run, onSubmit, disabled }: { run: ResearchRun; onSubmit: (rating: number, comment: string) => void; disabled: boolean }) {

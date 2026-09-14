@@ -45,7 +45,7 @@ Generate an ADMIN_API_KEY with at least 32 random characters and open `/operator
 
 Configure MODEL_PRICES_JSON per model with input/output prices per million tokens, and SEARCH_PRICES_JSON per provider with a request price. These are estimates; model failures without returned usage, search retry billing and hosting costs require reconciliation against provider invoices. Unknown prices are shown as unavailable.
 
-Quotas count submissions over a rolling 24 hours, including failed and cancelled runs, because those can still consume provider resources. A run permits three manual retries. Shared-IP limits can affect campuses behind NAT: tune IP_DAILY_RUN_LIMIT using beta feedback while retaining a global daily budget.
+Quotas count submissions over a rolling 24 hours, including failed and cancelled runs, because those can still consume provider resources. New runs permit three manual retries per phase (company, domain and export). Legacy runs without phase counters retain their original shared three-retry budget; no history is reset. Automatic response correction is separate from manual retries and shares a two-call ceiling with model fallback per structured step and manual attempt. These reservations persist across worker restarts. Shared-IP limits can affect campuses behind NAT: tune IP_DAILY_RUN_LIMIT using beta feedback while retaining a global daily budget.
 
 The browser credential provides anonymous scoped ownership, not an account or cross-device login. Clearing local storage loses access. Do not advertise persistent personal accounts until an account flow is added.
 
@@ -58,3 +58,11 @@ Run backend tests, lint, production build and browser tests. CI provisions a ded
 Staging checks still needed: successful live synthesis, cloud export and authorized link refresh, process restart during research, two concurrent users, and proxy/SSE behavior. Compare warm, cold-start, cache-hit and uncached latency separately. The saved 59.9% benchmark measures synthetic search scheduling only.
 
 SEARCH_QUERY_CONCURRENCY=1 restores sequential query batches. Set RESEARCH_CACHE_ENABLED=false and SEARCH_CACHE_ENABLED=false independently to disable caches. Structured synthesis is part of the v2 report contract; rolling that back requires restoring a compatible application release, not a configuration toggle. Take a database backup before release changes. Do not revert the report ownership boundary.
+
+## Focused response/retry update compatibility
+
+The response update adds retry_allowed, retries_remaining, retry_scope and failure_category to run snapshots without removing existing fields or endpoints. Retry exhaustion retains HTTP 429, with X-Failure-Category: manual_retries_exhausted and no Retry-After header; this is an application budget, not a provider rate limit. The frontend consumes snapshot fields, so it does not need access to the diagnostic header. Deploy backend before or together with frontend: the updated frontend hides retry controls when metadata is absent.
+
+No database migration, cache flush, dependency upgrade or new production setting is required. JSON run records receive counters only for new runs; legacy research and checkpoints are retained. Durable automatic attempt bookkeeping is added on execution. Existing provider-call/token caps and phase deadlines remain, with one repair sharing the two-call ceiling rather than adding calls beyond it. Invalid output and its repair input are never saved as completed research or logged. INFO-level agent.services.gemini diagnostics contain only run/phase/model, safe categories, schema paths, finish reason and recovery outcome.
+
+Validation was offline; actual provider finish-reason behavior and successful production synthesis still require verification by the operator. See RESPONSE_RETRY_CHECKPOINT.md for fixture results.

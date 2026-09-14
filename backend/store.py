@@ -122,7 +122,7 @@ class Store:
                    "state": {"company_name": company, "company_hint": hint, "completed_nodes": []},
                    "events": [], "event_seq": 0, "lease": "", "lease_until": 0, "attempts": 0,
                    "cancel_requested": False, "refresh": refresh, "feedback": None, "metrics": [],
-                   "not_before": 0, "retries": 0, "export_status": "not_started"}
+                   "not_before": 0, "retries": 0, "phase_retries": {"company": 0, "domain": 0, "export": 0}, "export_status": "not_started"}
             self.event(run, message="Your research is queued.")
             self.sql(db, "INSERT INTO research_runs(id,owner,created,payload) VALUES(?,?,?,?)", (run["id"], owner, now, json.dumps(run)))
             return run
@@ -182,7 +182,8 @@ class Store:
                     continue
                 if run["attempts"] >= 4:
                     run["status"] = "failed"
-                    self.event(run, "error", message="Research was interrupted repeatedly. You can retry from the saved step.")
+                    run["failure_category"] = "worker_attempts_exhausted"
+                    self.event(run, "error", message="Research was interrupted repeatedly. Completed steps are saved.")
                     self._save(db, run)
                     continue
                 run["attempts"] += 1

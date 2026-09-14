@@ -9,7 +9,7 @@ def fake_search(query):
              "content": "Northstar Systems uses Python for service development. Engineers work on automated tests and monitoring. This fictional fixture is for interface verification only.", "source": "exa"}]
 
 
-def fake_model(prompt, schema=None):
+def fake_model(prompt, schema=None, **kwargs):
     import json
     if schema is Identity:
         return Identity(name="Northstar Systems", location="Bengaluru, India", industry="Software and cloud operations",

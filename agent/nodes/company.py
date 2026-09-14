@@ -56,7 +56,7 @@ def analyze_research(state):
             "source IDs. Never infer technology from industry. Label missing or conflicting evidence as limitations. "
             "Summary describes evidence coverage only. No preparation advice in this company brief. "
             "Use INSUFFICIENT if the evidence does not support a reliable brief.\n"
-            + json.dumps({"identity": state["identity"], "sources": sources}, ensure_ascii=False), Brief)
+            + json.dumps({"identity": state["identity"], "sources": sources}, ensure_ascii=False), Brief, validator=lambda brief: validate_citations(brief, sources))
     data = validate_citations(brief, sources)
     if data["confidence"] != "INSUFFICIENT" and not data["domains"]:
         data["confidence"] = "INSUFFICIENT"

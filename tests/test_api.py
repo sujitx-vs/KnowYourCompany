@@ -90,7 +90,7 @@ def test_insufficient_not_success(client, db, auth, providers, monkeypatch):
 def test_confirmation_gate(client, db, auth, providers, monkeypatch):
     from tests.fixtures.research import fake_model
     from agent.schemas import Identity
-    def uncertain(prompt, schema):
+    def uncertain(prompt, schema, **kwargs):
         result = fake_model(prompt, schema)
         if schema is Identity:
             result.confidence = "MEDIUM"

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useResearchRun } from "@/hooks/useResearchRun";
-import { BriefContent, CompanyIdentity, CompanySearchForm, DomainPicker, Feedback, ReportActions, ResearchProgress, SourceList } from "@/components/dossier";
+import { BriefContent, CompanyIdentity, CompanySearchForm, DomainPicker, Feedback, ReportActions, RetryNotice, ResearchProgress, SourceList } from "@/components/dossier";
 
 export default function Home() {
   const research = useResearchRun();
@@ -28,7 +28,7 @@ export default function Home() {
           {run.status === "awaiting_domain_selection" && run.company_brief && <DomainPicker brief={run.company_brief} onChoose={domain => void research.chooseDomain(domain)} disabled={pending} />}
           {run.domain_brief && <BriefContent brief={run.domain_brief} label="02 / BUILD YOUR DIRECTION" title={run.selected_domain || "Your preparation"} />}
           {(run.export_status !== "not_started") && <ReportActions run={run} onRetry={() => void research.retry()} disabled={pending} />}
-          {["failed", "insufficient_evidence", "cancelled"].includes(run.status) && <section className="outcome-panel"><span className="eyebrow">{run.status === "failed" ? "A STEP NEEDS ATTENTION" : run.status === "cancelled" ? "RESEARCH STOPPED" : "THE EVIDENCE HAS LIMITS"}</span><h2>{run.status === "failed" ? "Your completed work is safe." : run.status === "cancelled" ? "Pick it up when you’re ready." : "We need a clearer starting point."}</h2><p>{run.message}</p>{run.status === "failed" ? <button className="primary" onClick={() => void research.retry()} disabled={pending}>Retry saved step →</button> : <button className="secondary" onClick={research.newResearch}>Start a new brief →</button>}</section>}
+          {["failed", "insufficient_evidence", "cancelled"].includes(run.status) && <section className="outcome-panel"><span className="eyebrow">{run.status === "failed" ? "A STEP NEEDS ATTENTION" : run.status === "cancelled" ? "RESEARCH STOPPED" : "THE EVIDENCE HAS LIMITS"}</span><h2>{run.status === "failed" ? "Your completed work is safe." : run.status === "cancelled" ? "Pick it up when you’re ready." : "We need a clearer starting point."}</h2><p>{run.message}</p>{run.status === "failed" ? <><RetryNotice run={run} />{run.retry_allowed === true && <button className="primary" onClick={() => void research.retry()} disabled={pending}>Retry saved step →</button>}</> : <button className="secondary" onClick={research.newResearch}>Start a new brief →</button>}</section>}
           <SourceList sources={run.sources} />
           {run.company_brief && !active && <Feedback key={run.id} run={run} onSubmit={(rating, comment) => void research.feedback(rating, comment)} disabled={pending} />}
           </div><aside className="activity-rail"><ResearchProgress run={run} connection={research.connection} onCancel={() => void research.cancel()} disabled={pending} /><div className="rail-note"><span className="eyebrow">A NOTE FROM THE DESK</span><p>Preparation advice is a starting point. Always check current hiring details with the company.</p>{run.sources.length > 0 && <a href="#sources">{run.sources.length} sources in your register ↓</a>}</div></aside></div>
