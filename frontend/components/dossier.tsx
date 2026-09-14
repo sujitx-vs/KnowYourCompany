@@ -29,6 +29,8 @@ export function ResearchProgress({ run, connection, onCancel, disabled }: { run:
     <div className="eyebrow"><span className={active ? "live-dot" : "status-dot"} />{active ? "RESEARCH IN PROGRESS" : "RESEARCH ACTIVITY"}</div>
     <div className="progress-title"><h2>{STAGE_NAMES[run.stage] || "Your dossier"}</h2>{active && <span className="elapsed">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</span>}</div>
     <p className="live-message" role="status" aria-live="polite">{run.message}</p>
+    {run.status === "queued" && run.message?.toLowerCase().includes("deeper search") && <p className="notice">Retrying with a deeper search. Your saved research is preserved; this may take a few more minutes.</p>}
+    {active && run.eta && <p className="next-step">Estimated time remaining: about {run.eta.remaining_minutes[0]}–{run.eta.remaining_minutes[1]} minutes · {run.eta.label}</p>}
     <div className="progress-facts"><span>{run.sources.length} checked sources</span><span>{run.completed_nodes.length} steps saved</span></div>
     {active && <p className="next-step">Next: {run.phase === "company" ? "read the company brief and choose your career focus." : run.phase === "domain" ? "review your preparation priorities." : "download your complete dossier."}</p>}
     {slow && <p className="notice">This step is taking longer than usual. Your completed work is saved.</p>}

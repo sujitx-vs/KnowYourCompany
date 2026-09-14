@@ -54,8 +54,25 @@ def public_run(run):
         "sources": sources, "researched_at": state.get("researched_at"), "cached_at": state.get("cached_at"),
         "events": run["events"][-15:], "cancel_requested": run["cancel_requested"],
         "completed_nodes": state.get("completed_nodes", []),
+        "timing": timing_summary(run), "eta": estimate_for_run(run),
         **retry_info(run),
     }
+
+def timing_summary(run):
+    phases = {"company": None, "domain": None, "export": None}
+    for metric in run.get("metrics", []):
+        if metric.get("metric") == "phase_seconds" and metric.get("phase") in phases:
+            phases[metric["phase"]] = metric.get("value")
+    return {"total_seconds": sum(v for v in phases.values() if v is not None) or None, "company_seconds": phases["company"], "domain_seconds": phases["domain"], "export_seconds": phases["export"], "queue_wait_seconds": run.get("queue_wait_seconds"), "automatic_retries": sum(run.get("automatic_retries", {}).values()), "manual_retries": run.get("retries", 0), "completed_through_retry": bool(run.get("retries", 0) or sum(run.get("automatic_retries", {}).values()))}
+
+def estimate_for_run(run, history=None):
+    phase = run.get("phase", "company")
+    default = {"company": 180, "domain": 180, "export": 45}.get(phase, 180)
+    samples = [timing_summary(item).get(f"{phase}_seconds") for item in (history or []) if item.get("status") == "completed"]
+    samples = sorted(value for value in samples if value)
+    if samples:
+        default = samples[len(samples) // 2]
+    return {"remaining_minutes": [max(1, round(default / 60 - 0.5)), max(2, round(default / 60 + 0.5))], "confidence": "medium" if samples else "low", "label": "Based on recent completed runs" if samples else "Approximation based on configured phase limits"}
 
 def summary(runs):
     durations = sorted(sum(m.get("value", 0) for m in r["metrics"] if m.get("metric") == "phase_seconds") for r in runs if r["status"] == "completed")
@@ -173,7 +190,8 @@ def create_app(store=None, start_worker=True):
 
     @app.get("/runs")
     def history(session=Depends(owner), db=Depends(get_store)):
-        return [public_run(r) for r in db.list(session)]
+        runs = db.list(session)
+        return [{**public_run(r), "eta": estimate_for_run(r, runs)} for r in runs]
 
     @app.get("/usage")
     def usage(session=Depends(owner), db=Depends(get_store)):

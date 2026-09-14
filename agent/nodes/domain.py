@@ -29,7 +29,7 @@ def analyze_domain(state):
             "Company-specific facts require supplied source IDs. Study advice must have kind recommendation, never claim it "
             "is an actual company interview question or requirement. Missing evidence has kind limitation. "
             "Never infer company tools from general industry practice. Summary describes evidence coverage only. "
-            "Include the required domains field as an empty array: domains: []. If company evidence is too weak use INSUFFICIENT.\n"
+            "Include the required domains field as an empty array: domains: []. If company evidence is too weak use INSUFFICIENT. " + ("This is a deeper retry: return a shorter complete brief with fewer claims.\n" if state.get("deeper_search") else "\n")
             + json.dumps({"identity": state["identity"], "domain": state["selected_domain"], "sources": sources}, ensure_ascii=False),
             Brief, validator=lambda brief: validate_citations(brief, sources, domain=True))
     data = validate_citations(brief, sources, domain=True)

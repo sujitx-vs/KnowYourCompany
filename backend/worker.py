@@ -101,7 +101,7 @@ class Worker:
         start = time.monotonic()
         token = context.set(RunContext(
             emit=lambda **event: self.store.append(run_id, lease, **event), cancelled=cancelled,
-            deadline=start + max(0, float(os.getenv("RUN_PHASE_TIMEOUT_SECONDS", "240")) - (time.time() - run.get("phase_started_at", time.time()))), checkpoint=checkpoint,
+            deadline=start + max(0, float(os.getenv("RUN_PHASE_TIMEOUT_SECONDS", "300")) - (time.time() - run.get("phase_started_at", time.time()))), checkpoint=checkpoint,
             cache=self.store, cache_lease=lease, refresh=run["refresh"],
             run_id=run_id, phase=run["phase"], response_budget=response_budget))
         try:
@@ -157,6 +157,21 @@ class Worker:
         except Exception as error:
             category = failure_category(error)
             log.warning("Research failed run=%s phase=%s category=%s", run_id, run["phase"], category)
+            if category == "phase_timeout":
+                def retry_timeout(current):
+                    automatic = current.setdefault("automatic_retries", {"company": 0, "domain": 0, "export": 0})
+                    phase = current["phase"]
+                    if automatic.get(phase, 0) >= 1:
+                        return False
+                    automatic[phase] = automatic.get(phase, 0) + 1
+                    current["metrics"].append({"metric": "phase_seconds", "phase": phase, "value": round(time.monotonic() - start, 3), "timed_out": True})
+                    current.update(status="queued", stage="queued", message="The first pass took longer than expected. Retrying with a deeper search…", not_before=0, deeper_search=True)
+                    self.store.event(current, "state", message="Phase time limit exceeded; retrying with deeper search.")
+                    return True
+                retrying = self.store.mutate(run_id, retry_timeout, lease=lease)
+                if retrying.get("automatic_retries", {}).get(run["phase"], 0) > run.get("automatic_retries", {}).get(run["phase"], 0):
+                    log.warning("Phase time limit exceeded; retrying with deeper search: run=%s phase=%s timeout_seconds=300", run_id, run["phase"])
+                    return
             with suppress(LeaseLost):
                 finish("export_failed" if run["phase"] == "export" else "failed",
                        "The PDF could not be prepared. Your web brief is saved." if run["phase"] == "export" else "This research step could not finish. Your completed steps are saved.",

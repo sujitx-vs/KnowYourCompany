@@ -4,6 +4,8 @@ export type Brief = { confidence: string; summary: string; sections: { title: st
 export type Source = { id: string; title: string; url: string; source: string; retrieved_at: string; official: boolean };
 export type ProgressEvent = { id: number; timestamp: number; event_type: string; stage: string; message?: string; completed?: number; total?: number };
 export type ResearchRun = {
+  timing?: { total_seconds: number | null; company_seconds: number | null; domain_seconds: number | null; export_seconds: number | null; queue_wait_seconds: number | null; automatic_retries: number; manual_retries: number; completed_through_retry: boolean };
+  eta?: { remaining_minutes: [number, number]; confidence: string; label: string };
   retry_allowed?: boolean; retries_remaining?: number; retry_scope?: "phase" | "legacy_shared"; failure_category?: string | null;
   id: string; company_name: string; status: RunStatus; phase: string; stage: string; message: string;
   created_at: number; updated_at: number; phase_started_at: number | null; completed_nodes: string[]; event_seq: number; export_status: string;

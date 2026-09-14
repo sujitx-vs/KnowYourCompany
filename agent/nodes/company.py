@@ -55,7 +55,7 @@ def analyze_research(state):
             "with an evidence-based reason, not vacancies. Every company-specific factual claim and domain needs supplied "
             "source IDs. Never infer technology from industry. Label missing or conflicting evidence as limitations. "
             "Summary describes evidence coverage only. No preparation advice in this company brief. "
-            "Use INSUFFICIENT if the evidence does not support a reliable brief.\n"
+            "Use INSUFFICIENT if the evidence does not support a reliable brief. " + ("This is a deeper retry: return a shorter complete brief with fewer claims.\n" if state.get("deeper_search") else "\n")
             + json.dumps({"identity": state["identity"], "sources": sources}, ensure_ascii=False), Brief, validator=lambda brief: validate_citations(brief, sources))
     data = validate_citations(brief, sources)
     if data["confidence"] != "INSUFFICIENT" and not data["domains"]:
