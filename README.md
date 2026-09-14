@@ -7,6 +7,8 @@ The interface uses a warm editorial design. The workflow runs independently of t
 browser, with live activity, saved progress, confirmation for uncertain company
 matches and explicit insufficient-evidence outcomes.
 
+Live application: [know-your-company-pi.vercel.app](https://know-your-company-pi.vercel.app/)
+
 ## What is implemented
 
 - Structured company and preparation briefs with source IDs and a clickable source register.
@@ -16,7 +18,10 @@ matches and explicit insufficient-evidence outcomes.
 - Authenticated run ownership through an anonymous browser credential; quotas and idempotent submissions.
 - Durable run queue, leased workers and completed-node snapshots in SQLite (local) or PostgreSQL (production).
 - Server-sent progress events with polling fallback, refresh recovery, cancellation and saved-step retries.
+- Five-minute phase deadlines with one bounded automatic timeout retry per phase, checkpoint resume and deeper-search progress messaging.
+- Historical phase timing, retry metadata and approximate ETA ranges restored from saved run history.
 - A separate PDF export phase using the same brief and sources; export retry does not redo research.
+- Detailed placement-oriented dossiers covering domain relevance, tools, skills, concepts, project ideas, interview topics and company-specific advice.
 - Saved browser-session history, usefulness feedback, usage allowance and a protected operator dashboard.
 
 ## Local setup
@@ -141,7 +146,8 @@ Prices must be configured from your actual provider plans; unknown costs remain 
 This is a private-beta implementation, not a completed market validation. Browser
 credentials are not personal accounts: clearing browser data loses access. Deployment,
 cloud-storage verification, complete live quality/performance evaluation and target-user
-feedback remain launch gates. The application has not been deployed by this implementation work.
+feedback remain launch gates. The current frontend is available at the live link above;
+backend deployment and provider configuration remain environment-specific.
 
 Company facts require evidence; preparation recommendations are explicitly labelled.
 Always verify current hiring details through official sources.
